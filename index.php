@@ -56,32 +56,57 @@ class Json {
 
     public function renderKey($Redis) {
         $key    = base64_decode( $_GET['key'] );
+        $ttl    = $Redis->ttl( $key );
         $type   = $Redis->type( $key );
         $retval = false;
         switch( $type ) {
             case 1: {
-                $retval = $Redis->get( $key );
+                $retval = sprintf('<div style="word-break:break-all;word-wrap:break-word;">%s</div>',  $Redis->get( $key ) );
                 $type   = 'string';
+                $size   = strlen($retval) . " characters";
                 break;
             }
             case 2: {
-                $retval = $Redis->smembers( $key );
+                $set = $Redis->smembers( $key );
+                $retval = '<table class="table table-condensed table-striped">';
+                foreach ($set as $value) {
+                    $retval .= sprintf("<tr><td>%s</td></tr>", $value);
+                }
+                $retval.= '</table>';
+                $size   = count($set) . " items";
                 $type   = 'set';
                 break;
             }
             case 3: {
-                $retval = $Redis->lrange( $key, 0, -1 );
-                $type   = 'set';
+                $list = $Redis->lrange( $key, 0, -1 );
+                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Index</th><th>Value</th></tr>';
+                foreach ($list as $index => $value) {
+                    $retval .= sprintf("<tr><td>%d</td><td>%s</td></tr>", $index, $value);
+                }
+                $retval.= '</table>';
+                $size   = count($list) . " items";
+                $type   = 'list';
                 break;
             }
             case 4: {
-                $retval = $Redis->zrange( $key, 0, -1, "WITHSCORES" );
+                $zset   = $Redis->zrange( $key, 0, -1, "WITHSCORES" );
+                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Score</th><th>Value</th></tr>';
+                foreach ($zset as $value => $scroe) {
+                    $retval .= sprintf("<tr><td>%d</td><td>%s</td></tr>", $scroe, $value);
+                }
+                $retval.= '</table>';
+                $size   = count($zset) . " items";
                 $type   = 'zset';
                 break;
             }
             case 5: {
-                $retval = $Redis->hgetall( $key );
+                $hash = $Redis->hgetall( $key );
+                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Key</th><th>Value</th></tr>';
+                foreach ($hash as $k => $value) {
+                    $retval .= sprintf("<tr><td>%s</td><td>%s</td></tr>", $k, $value);
+                }
                 $type   = 'hash';
+                $size   = count($hash) . " items";
                 break;
             }
             default: {
@@ -91,14 +116,20 @@ class Json {
             }
         }
         // class="dl-horizontal"
-        $html = '<style>.pd-key{padding:5px; padding-left:20px;} .pd-left{padding-left:50px;}</style>
+        $html = '<style>.pd-key{padding:5px; padding-left:20px;} .pd-left{padding-left:50px;}
+            #detail td,#detail th {font-size:12px;}
+            </style>
             <dl>
                 <dt class="pd-key"><code>Key</code></dt>
                 <dd class="pd-key pd-left"> ' . $key . ' </dd>
+                <dt class="pd-key"><code>TTL</code></dt>
+                <dd class="pd-key pd-left"> ' . ( ($ttl == -1) ? 'does not expire' : $ttl ) . ' </dd>
                 <dt class="pd-key"><code>Type</code></dt>
                 <dd class="pd-key pd-left"> ' . $type . ' </dd>
+                <dt class="pd-key"><code>Size</code></dt>
+                <dd class="pd-key pd-left"> ' . $size . ' </dd>
                 <dt class="pd-key"><code>Value</code></dt>
-                <dd class="pd-key pd-left"> ' . $retval . ' </dd>
+                <dd class="pd-key pd-left">' . $retval . '</dd>
             </dl>';
         return $html;
     }
@@ -180,24 +211,14 @@ class Html {
         $html .= sprintf('<input type="hidden" name="db" value="%s" />', $this->db);
         $html .= '
         <div class="row">
-        <div class="col-md-12">
-        <table class="table table-condensed table-bordered">
-        <tr>
-            <th width="30"> 
-                <input type="checkbox" name="check_all" value="Check All" onClick="javascript:selectToggle(\'form-list\');">
-            </th>
-            <th> Key </th>
-            <th width="50%"> Detail </th> 
-        </tr>';
+        <div class="col-md-6">
+            <div class="list-group">';
         foreach( $matched_keys as $i => $key ) {
-            $html .= '<tr>';
-            $html .= sprintf('<td><input type="checkbox" name="item[]" value="%s" /></td>', htmlspecialchars( base64_encode( $key ) ) );
-            $html .= sprintf('<td><a href="javascript:;" data-type="key" data-href="%s?server=%s&db=%d&action=list&pattern=%s&key=%s"> %s </a></td>', $this->script_name, $this->server, $this->db, $this->pattern, htmlspecialchars( base64_encode( $key ) ), $key);
-            if ( ! $i ) $html .= sprintf('<td rowspan="%d" id="detail"></td>', count($matched_keys));
-            $html .= '</tr>';
+            $html .= sprintf('<a class="list-group-item" href="javascript:;" data-type="key" data-href="%s?server=%s&db=%d&action=list&pattern=%s&key=%s"><input type="checkbox" name="item[]" value="%s" /> %s </a>', $this->script_name, $this->server, $this->db, $this->pattern, htmlspecialchars( base64_encode( $key ) ), htmlspecialchars( base64_encode( $key ) ), $key);
         }
-        $html .= '</table></div></div>';
-        $html .= '</div></form>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="col-md-6" id="detail" style="padding-top:30px;"></div></div></form>';
         return $html;
     }
 
@@ -302,6 +323,8 @@ function confirmSubmit() {
 }
 
 jQuery('a[data-type=key]').bind('click', function() {
+    jQuery('a[data-type=key]').removeClass('active');
+    jQuery(this).addClass('active');
     jQuery('#detail').html('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100" style="width: 100%"><span class="sr-only">Loading</span></div></div>');
     jQuery.getJSON( jQuery(this).attr('data-href'), function(response) {
         jQuery('#detail').html( response.html );
