@@ -1,11 +1,11 @@
 <?php
 $CONFIG_HOST = array(
+    // 'default' => array(
+    //    'host'     => '192.168.12.153',
+    //    'port'     => 6380,
+    //    'database' => 0,
+    // ),
     'default' => array(
-       'host'     => '192.168.12.153',
-       'port'     => 6380,
-       'database' => 0,
-    ),
-    'local' => array(
        'host'     => '127.0.0.1',
        'port'     => 6379,
        'database' => 0,
@@ -68,7 +68,7 @@ class Json {
             }
             case 2: {
                 $set = $Redis->smembers( $key );
-                $retval = '<table class="table table-condensed table-striped">';
+                $retval = '<table class="table table-bordered table-condensed table-striped">';
                 foreach ($set as $value) {
                     $retval .= sprintf("<tr><td>%s</td></tr>", $value);
                 }
@@ -79,7 +79,7 @@ class Json {
             }
             case 3: {
                 $list = $Redis->lrange( $key, 0, -1 );
-                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Index</th><th>Value</th></tr>';
+                $retval = '<table class="table table-bordered table-condensed table-striped"><tr><th width="20%">Index</th><th>Value</th></tr>';
                 foreach ($list as $index => $value) {
                     $retval .= sprintf("<tr><td>%d</td><td>%s</td></tr>", $index, $value);
                 }
@@ -90,7 +90,7 @@ class Json {
             }
             case 4: {
                 $zset   = $Redis->zrange( $key, 0, -1, "WITHSCORES" );
-                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Score</th><th>Value</th></tr>';
+                $retval = '<table class="table table-bordered table-condensed table-striped"><tr><th width="20%">Score</th><th>Value</th></tr>';
                 foreach ($zset as $value => $scroe) {
                     $retval .= sprintf("<tr><td>%d</td><td>%s</td></tr>", $scroe, $value);
                 }
@@ -101,7 +101,7 @@ class Json {
             }
             case 5: {
                 $hash = $Redis->hgetall( $key );
-                $retval = '<table class="table table-condensed table-striped"><tr><th width="20%">Key</th><th>Value</th></tr>';
+                $retval = '<table class="table table-bordered table-condensed table-striped"><tr><th width="20%">Key</th><th>Value</th></tr>';
                 foreach ($hash as $k => $value) {
                     $retval .= sprintf("<tr><td>%s</td><td>%s</td></tr>", $k, $value);
                 }
@@ -116,20 +116,22 @@ class Json {
             }
         }
         // class="dl-horizontal"
-        $html = '<style>.pd-key{padding:5px; padding-left:20px;} .pd-left{padding-left:50px;}
+        $html = '<style>.pd-key{padding:5px;} 
+            #detail .pd-left{width:70px;} 
+            #detail .pd-right{margin-left:90px;}
             #detail td,#detail th {font-size:12px;}
             </style>
-            <dl>
-                <dt class="pd-key"><code>Key</code></dt>
-                <dd class="pd-key pd-left"> ' . $key . ' </dd>
-                <dt class="pd-key"><code>TTL</code></dt>
-                <dd class="pd-key pd-left"> ' . ( ($ttl == -1) ? 'does not expire' : $ttl ) . ' </dd>
-                <dt class="pd-key"><code>Type</code></dt>
-                <dd class="pd-key pd-left"> ' . $type . ' </dd>
-                <dt class="pd-key"><code>Size</code></dt>
-                <dd class="pd-key pd-left"> ' . $size . ' </dd>
-                <dt class="pd-key"><code>Value</code></dt>
-                <dd class="pd-key pd-left">' . $retval . '</dd>
+            <dl class="dl-horizontal">
+                <dt class="pd-key pd-left"><code>Key</code></dt>
+                <dd class="pd-key pd-right"> ' . $key . ' </dd>
+                <dt class="pd-key pd-left"><code>TTL</code></dt>
+                <dd class="pd-key pd-right"> ' . ( ($ttl == -1) ? 'does not expire' : $ttl ) . ' </dd>
+                <dt class="pd-key pd-left"><code>Type</code></dt>
+                <dd class="pd-key pd-right"> ' . $type . ' </dd>
+                <dt class="pd-key pd-left"><code>Size</code></dt>
+                <dd class="pd-key pd-right"> ' . $size . ' </dd>
+                <dt class="pd-key pd-left"><code>Value</code></dt>
+                <dd class="pd-key pd-right">' . $retval . '</dd>
             </dl>';
         return $html;
     }
@@ -185,7 +187,7 @@ class Html {
         $matched_keys         = $Redis->keys( $this->pattern );
 
         $html  = sprintf('<form name="form-list" class="form-inline" method="get" action="%s">', $this->script_name );
-        $html .= sprintf('<div class="panel panel-default" style="margin-bottom:0; border-bottom:0;">');
+        $html .= sprintf('<div class="panel panel-default">');
         $html .= sprintf('<div class="panel-heading">');
         $html .= sprintf('<div class="row">');
 
@@ -211,14 +213,14 @@ class Html {
         $html .= sprintf('<input type="hidden" name="db" value="%s" />', $this->db);
         $html .= '
         <div class="row">
-        <div class="col-md-6">
+        <div id="list" class="col-md-6" style="overflow:auto;";>
             <div class="list-group">';
         foreach( $matched_keys as $i => $key ) {
             $html .= sprintf('<a class="list-group-item" href="javascript:;" data-type="key" data-href="%s?server=%s&db=%d&action=list&pattern=%s&key=%s"><input type="checkbox" name="item[]" value="%s" /> %s </a>', $this->script_name, $this->server, $this->db, $this->pattern, htmlspecialchars( base64_encode( $key ) ), htmlspecialchars( base64_encode( $key ) ), $key);
         }
         $html .= '</div>';
         $html .= '</div>';
-        $html .= '<div class="col-md-6" id="detail" style="padding-top:30px;"></div></div></form>';
+        $html .= '<div class="col-md-6"><div class="well" id="detail"><p>Please choose a key from left.</p></div></div></form>';
         return $html;
     }
 
@@ -260,7 +262,7 @@ $Html->setScriptName(Registry::get('script_name'));
 $Html->setAction(Registry::get('action'));
 $Html->setPattern(Registry::get('pattern'));
 ?>
-<html>
+<!DOCTYPE html>
 <head>
     <title>Adminer for Redis</title>
 </head>
@@ -321,7 +323,7 @@ function confirmSubmit() {
     }
     return confirm("Are you sure you wish to continue?");
 }
-
+jQuery("#list").height($(window).height() - $('#list').offset().top - 20);
 jQuery('a[data-type=key]').bind('click', function() {
     jQuery('a[data-type=key]').removeClass('active');
     jQuery(this).addClass('active');
