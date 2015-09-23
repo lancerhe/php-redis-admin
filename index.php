@@ -214,7 +214,9 @@ class Html {
         $html .= '
         <div class="row">
         <div id="list" class="col-md-6" style="overflow:auto;";>
-            <div class="list-group">';
+            <div class="list-group">
+            <a class="list-group-item disabled" href="javascript:;"><input type="checkbox" name="check_all" onClick="selectToggle(\'form-list\')" /> Key </a>
+            ';
         foreach( $matched_keys as $i => $key ) {
             $html .= sprintf('<a class="list-group-item" href="javascript:;" data-type="key" data-href="%s?server=%s&db=%d&action=list&pattern=%s&key=%s"><input type="checkbox" name="item[]" value="%s" /> %s </a>', $this->script_name, $this->server, $this->db, $this->pattern, htmlspecialchars( base64_encode( $key ) ), htmlspecialchars( base64_encode( $key ) ), $key);
         }
