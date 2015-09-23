@@ -1,5 +1,5 @@
 <?php
-$CONFIG_HOST = array(
+$config = array(
     // 'default' => array(
     //    'host'     => '192.168.12.153',
     //    'port'     => 6380,
@@ -12,40 +12,32 @@ $CONFIG_HOST = array(
     ),
 );
 
-class Registry {
-    static $data = array();
-    public static function get($key) {
-        return (self::has($key) ? self::$data[$key] : NULL);
-    }
-    public static function set($key, $value) {
-        self::$data[$key] = $value;
-    }
-    public static function has($key) {
-        return isset(self::$data[$key]);
-    }
-}
-
-
-Registry::set('config',      $CONFIG_HOST);
-Registry::set('server',      isset( $_GET["server"] )  ? $_GET["server"]   : 'default' );
-Registry::set('db',          isset( $_GET["db"] )      ? $_GET["db"]       : 0 );
-Registry::set("action",      isset( $_GET["action"] )  ? $_GET['action']   : 'list');
-Registry::set("pattern",     isset( $_GET['pattern'] ) ? $_GET['pattern']  : '*');
-Registry::set("script_name", 'index.php');
+$server      =  isset( $_GET["server"] )  ? $_GET["server"]   : 'default';
+$db          =  isset( $_GET["db"] )      ? $_GET["db"]       : 0;
+$action      =  isset( $_GET["action"] )  ? $_GET['action']   : 'list';
+$pattern     =  isset( $_GET['pattern'] ) ? $_GET['pattern']  : '*';
+$script_name =  "index.php";
 
 $Redis = new Redis();
-$Redis->connect($CONFIG_HOST[Registry::get('server')]['host'], $CONFIG_HOST[Registry::get('server')]['port']);
-$script_name = "index.php";
+$Redis->connect($config[$server]['host'], $config[$server]['port'], 5);
 
 try {
     $Redis->ping();
-} catch( PRedis\Connection\ConnectionException $e ) {
-    die("Couldn't connect to server. " . $e->getMessage());
-} catch( PRedis\ServerException $e ) {
-    die("Authentication error!");
 } catch( Exception $e ) {
-    die("Error!");
+    die("Couldn't connect to server [tcp://{$config[$server]['host']}:{$config[$server]['port']}]. " . $e->getMessage());
 }
+
+$Redis->select( $db );
+if ( isset ( $_GET['key'] ) ) {
+    $Json = new Json($server, $db);
+    $html = $Json->renderKey($Redis);
+    exit ( json_encode(array('html' => $html) ) );
+}
+$Html = new Html($server, $db);
+$Html->setScriptName($script_name);
+$Html->setAction($action);
+$Html->setPattern($pattern);
+$Html->setServerList($config);
 
 class Json {
 
@@ -156,10 +148,14 @@ class Html {
         $this->pattern = $pattern;
     }
 
+    public function setServerList($list) {
+        $this->list = $list;
+    }
+
     public function renderServerForm() {
         $html  = sprintf('<form class="navbar-form" method="get" action="%s">', $this->script_name );
         $html .= '<select name="server" id="server" class="form-control" onchange="this.form.submit();">';
-        foreach (Registry::get('config') as $key => $config) {
+        foreach ($this->list as $key => $config) {
             $html .= sprintf('<option value="%s" %s>%s</option>', $key, ($key == $this->server ? 'selected' : ''), $key);
         }
         $html .= '</select></form>';
@@ -252,17 +248,6 @@ class Html {
         }
     }
 }
-
-$Redis->select( Registry::get('db') );
-if ( isset ( $_GET['key'] ) ) {
-    $Json = new Json(Registry::get('server'), Registry::get('db'));
-    $html = $Json->renderKey($Redis);
-    exit ( json_encode(array('html' => $html) ) );
-}
-$Html = new Html(Registry::get('server'), Registry::get('db'));
-$Html->setScriptName(Registry::get('script_name'));
-$Html->setAction(Registry::get('action'));
-$Html->setPattern(Registry::get('pattern'));
 ?>
 <!DOCTYPE html>
 <head>
