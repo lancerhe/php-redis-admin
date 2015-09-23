@@ -12,11 +12,11 @@ $config = array(
     ),
 );
 
+$script_name =  "index.php";
 $server      =  isset( $_GET["server"] )  ? $_GET["server"]   : 'default';
 $db          =  isset( $_GET["db"] )      ? $_GET["db"]       : 0;
 $action      =  isset( $_GET["action"] )  ? $_GET['action']   : 'list';
-$pattern     =  isset( $_GET['pattern'] ) ? $_GET['pattern']  : '*';
-$script_name =  "index.php";
+$pattern     =  isset( $_GET['pattern'] ) ? $_GET['pattern']  : '';
 
 $Redis = new Redis();
 $Redis->connect($config[$server]['host'], $config[$server]['port'], 5);
@@ -190,7 +190,7 @@ class Html {
         $html .= sprintf('<div class="form-inline col-md-7">');
         $html .= sprintf('<div class="form-group">');
         $html .= sprintf('<label for="pattern">Pattern </label> ');
-        $html .= sprintf('<input class="form-control" type="text" name="pattern" id="pattern" placeholder="key" value="%s" /> ', $this->pattern);
+        $html .= sprintf('<input class="form-control" type="text" name="pattern" id="pattern" placeholder="Key, like:*sesson*" value="%s" /> ', $this->pattern);
         $html .= sprintf('<button type="submit" class="btn btn-default">Submit</button>');
         $html .= sprintf('</div></div>');
 
