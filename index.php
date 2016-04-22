@@ -1,10 +1,10 @@
 <?php
 $config = array(
-    // 'default' => array(
-    //    'host'     => '192.168.12.153',
-    //    'port'     => 6380,
-    //    'database' => 0,
-    // ),
+    'testing' => array(
+       'host'     => '192.168.12.153',
+       'port'     => 6380,
+       'database' => 0,
+    ),
     'default' => array(
        'host'     => '127.0.0.1',
        'port'     => 6379,
